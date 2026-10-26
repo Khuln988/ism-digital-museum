@@ -5,6 +5,7 @@
 > Internet Programming · Гэрийн даалгавар №1
 
 - **Live demo:** https://ism-digital-museum.vercel.app
+- **GitHub:** https://github.com/khuln988/ism-digital-museum
 - **Стек:** React 18 + Vite · React Router · Supabase (Auth, PostgreSQL, Storage, RLS) · Vercel
 
 ---
