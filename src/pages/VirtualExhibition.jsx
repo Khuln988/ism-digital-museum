@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { EXHIBIT_SELECT } from '../lib/queries'
 import { Loader, ErrorBox } from '../components/States'
 import { FALLBACK_IMG } from '../components/ExhibitCard'
+import { speakMongolian, stopSpeaking, narrationText } from '../lib/tts'
 
 const TOUR_MS = 7000
 
@@ -22,6 +23,7 @@ export default function VirtualExhibition() {
   const [entered, setEntered] = useState(Boolean(focusId))
   const [touring, setTouring] = useState(false)
   const [narrate, setNarrate] = useState(false)
+  const [ttsNotice, setTtsNotice] = useState('')
   const [error, setError] = useState('')
   const [visited, setVisited] = useState(() => new Set())
   const stageRef = useRef(null)
@@ -76,24 +78,23 @@ export default function VirtualExhibition() {
     return () => clearTimeout(t)
   }, [touring, narrate, idx, go])
 
-  // Аудио хөтөч (Web Speech API)
+  // Аудио хөтөч — зөвхөн МОНГОЛ хэлээр (хөтчийн mn-MN хоолой → серверийн Azure TTS)
   useEffect(() => {
-    const synth = window.speechSynthesis
-    if (!synth) return
-    synth.cancel()
-    if (!narrate || !current || !entered) return
-    const creator = current.profiles?.display_name || current.creator_name || ''
-    const u = new SpeechSynthesisUtterance(`${current.title}. ${creator ? 'Зохиогч ' + creator + '.' : ''} ${current.year_created || ''} он. ${current.description || ''}`)
-    const voices = synth.getVoices()
-    u.voice = voices.find((v) => v.lang?.startsWith('mn')) || voices.find((v) => v.lang?.startsWith('ru')) || null
-    u.lang = u.voice?.lang || 'mn-MN'
-    u.rate = 0.95
-    u.onend = () => { if (touring) setTimeout(() => go(1), 900) }
-    synth.speak(u)
-    return () => synth.cancel()
+    if (!narrate || !current || !entered) { stopSpeaking(); return }
+    let alive = true
+    speakMongolian(narrationText(current), current.id, {
+      onend: () => { if (alive && touring) setTimeout(() => go(1), 900) },
+    }).then((mode) => {
+      if (!alive) return
+      if (mode === 'none') {
+        setNarrate(false)
+        setTtsNotice('Монгол дуу хоолой олдсонгүй. Microsoft Edge хөтчөөр нээвэл монголоор уншина.')
+      } else if (mode !== 'cancelled') setTtsNotice('')
+    })
+    return () => { alive = false; stopSpeaking() }
   }, [narrate, current, entered, touring, go])
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), [])
+  useEffect(() => () => stopSpeaking(), [])
 
   const fullscreen = () => {
     const el = stageRef.current
@@ -195,10 +196,11 @@ export default function VirtualExhibition() {
           </div>
           <div className="vx-controls">
             <button className={`vx-ctrl ${touring ? 'on' : ''}`} onClick={() => setTouring(!touring)} aria-pressed={touring}>{touring ? '⏸ Аялал' : '▶ Аялал'}</button>
-            <button className={`vx-ctrl ${narrate ? 'on' : ''}`} onClick={() => setNarrate(!narrate)} aria-pressed={narrate} disabled={!('speechSynthesis' in window)}>🎧 Аудио хөтөч</button>
+            <button className={`vx-ctrl ${narrate ? 'on' : ''}`} onClick={() => { setTtsNotice(''); setNarrate(!narrate) }} aria-pressed={narrate}>🎧 Аудио хөтөч</button>
             <button className="vx-ctrl" onClick={fullscreen}>⛶ Бүтэн дэлгэц</button>
             <Link className="vx-ctrl" to={`/exhibits/${current.id}`}>Дэлгэрэнгүй →</Link>
           </div>
+          {ttsNotice && <div className="vx-notice" role="status">🔇 {ttsNotice}</div>}
           {touring && !narrate && <div className="vx-progress"><span key={idx} style={{ animationDuration: `${TOUR_MS}ms` }} /></div>}
         </div>
       ) : (

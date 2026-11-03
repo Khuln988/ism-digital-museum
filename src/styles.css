@@ -389,3 +389,4 @@ kbd { display: inline-block; padding: 2px 7px; margin-right: 3px; border-radius:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+.vx-notice { flex-basis: 100%; font-size: .88rem; color: #ffd58a; background: rgba(255, 196, 0, .08); border: 1px solid rgba(255, 196, 0, .25); padding: 8px 12px; border-radius: 10px; }
